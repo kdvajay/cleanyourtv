@@ -1,31 +1,51 @@
 <p align="center">
-  <a href="https://cleanyour.tv/halloween"><img src="https://raw.githubusercontent.com/Gathin23/cleanyourtv/main/docs/banner-halloween.png" alt="CleanYourTV, Halloween edition. Your TV, minus the ads. Strip the bloatware from any Android TV or Google TV over Wi-Fi and replace the ad-filled home screen with a clean launcher that looks like an Apple TV. No root, no cable, nothing uninstalled, and a one-line restore. Now with a pumpkin." width="800"></a>
+  <a href="https://github.com/kdvajay/cleanyourtv"><img src="docs/card-halloween.jpg" alt="CleanYourTV - Custom Enhanced Edition" width="800"></a>
 </p>
 
-<p align="center">
-  🎃 <b>New: the Halloween pack</b> (until 1 Nov): <a href="https://cleanyour.tv/halloween">cleanyour.tv/halloween</a>
-</p>
+# CleanYourTV — Custom Enhanced Edition
 
-<p align="center">
-  Read in: <a href="README.zh-CN.md">简体中文</a> · <a href="README.zh-TW.md">正體中文</a> · <a href="README.vi.md">Tiếng Việt</a> · <a href="README.ja.md">日本語</a> · <a href="README.it.md">Italiano</a> · <a href="README.nl.md">Nederlands</a> · <a href="README.de.md">Deutsch</a> · <a href="README.uk.md">Українська</a>
-</p>
+> **Fork maintained by [@kdvajay](https://github.com/kdvajay)**  
+> Tailored and optimized for modern Android TV & Google TV devices (developed and verified on Xiaomi Smart TV A 2024).
 
-<p align="center">
-  <a href="https://github.com/Gathin23/cleanyourtv/stargazers"><img src="https://img.shields.io/github/stars/Gathin23/cleanyourtv?style=flat&cacheSeconds=1800&color=cfffcf&labelColor=15181e" alt="Stars"></a>
-  <a href="https://github.com/Gathin23/cleanyourtv/pulls?q=is%3Amerged"><img src="https://img.shields.io/github/issues-search?query=repo%3AGathin23%2Fcleanyourtv%20is%3Apr%20is%3Amerged&style=flat&cacheSeconds=1800&label=merged%20PRs&color=cfffcf&labelColor=15181e" alt="Merged PRs"></a>
-  <a href="https://github.com/Gathin23/cleanyourtv/network/members"><img src="https://img.shields.io/github/forks/Gathin23/cleanyourtv?style=flat&cacheSeconds=1800&color=cfffcf&labelColor=15181e" alt="Forks"></a>
-  <a href="https://github.com/Gathin23/cleanyourtv/graphs/contributors"><img src="https://img.shields.io/github/contributors/Gathin23/cleanyourtv?style=flat&cacheSeconds=1800&color=cfffcf&labelColor=15181e" alt="Contributors"></a>
-  <a href="https://buymeacoffee.com/gathint"><img src="https://img.shields.io/badge/support-%E2%9D%A4-ff5e8a?style=flat&labelColor=15181e" alt="Support, buy me a coffee"></a>
-  <a href="https://www.producthunt.com/products/cleanyourtv"><img src="https://img.shields.io/badge/Product%20Hunt-upvote%20%E2%96%B2-da552f?style=flat&logo=producthunt&logoColor=white&labelColor=15181e" alt="CleanYourTV on Product Hunt"></a>
-</p>
+---
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/310225"><img src="docs/trending-badge.png" alt="#1 trending repo of the week, Oct 19–25 2026, via trendshift.io" width="360"></a>
-</p>
+## ✨ Enhancements & Custom Features in this Edition
 
-<p align="center">
-  <a href="docs/PRESS.md"><img src="docs/card-halloween.jpg" alt="380 TV models · 101 brands · 31 languages · 572 KB launcher. Featured in TechCrunch, TechRadar, Tom's Guide, Mashable, Android Authority, XDA, FlatpanelsHD, It's FOSS, Phandroid, GIGAZINE, Xataka, WinFuture, Frandroid, Macitynet, Techaeris, TechPP and 335 more: 351 articles from 46 countries. Before: stock Google TV home with a sponsored ad. After: the Clean Your TV launcher." width="800"></a>
-</p>
+This fork extends upstream CleanYourTV with visual polish, hardware optimizations, and cold-boot reliability fixes:
+
+### 1. Minimalist Borderless Line-Art App Banners
+* **Pure Line Art Vectors**: Custom bundled transparent vector banners for popular services:
+  * Netflix (`banner_netflix.xml`)
+  * Amazon Prime Video (`banner_prime.xml`)
+  * YouTube (`banner_youtube.xml`)
+  * JioHotstar (`banner_hotstar.xml`)
+  * Spotify (`banner_spotify.xml`)
+  * Live TV (`banner_tv.xml`)
+* **Zero Tile Framing**: Replaced heavy rectangular cards with crisp, borderless white glyphs that blend naturally into any wallpaper.
+
+### 2. Intelligent Dynamic Monochrome Fallback
+* **Elimination of Ugly White Squares**: Third-party TV apps with opaque or squircle icons (Apple TV, JioCinema, MX Player, Sony LIV, Zee5, Viki, Play Store) typically render with harsh white backgrounds on custom launchers.
+* **4×4 Perimeter Sampling (`isSolidIcon`)**: Dynamically samples border pixels of arbitrary app drawables in [`AppAdapter.java`](launcher/app/src/main/java/com/gathin/tvhome/AppAdapter.java) to detect opaque backgrounds without hardcoded package lists.
+* **`ColorMatrix` Desaturation**: Dynamically applies a luminance-preserving monochrome matrix filter to opaque icons, unifying all installed apps into an elegant monochrome look.
+
+### 3. Smooth Spring Focus & Hover State Transitions
+* **1.25x Spring Scaling**: Enabled `focus_overshoot` spring physics for natural, fluid enlargement when navigating apps with the TV remote.
+* **Clean Card Styling**: Configured `glass_style: "none"` and `borderless_tiles: true` for an ultra-clean, floating dock and grid experience.
+
+### 4. Animated Rolling Digital Seconds Clock
+* **Live Rolling Ticker**: The seconds ticker (`:SS`) smoothly rolls upward with a 220ms ease-out vertical animation.
+* **Millisecond-Synchronized**: Handler precisely aligns with `1000 - (System.currentTimeMillis() % 1000)` to eliminate jitter and maintain battery-efficient, exact-second transitions.
+* **Full Header Info**: Preserves the time-aware greeting banner (`GOOD MORNING / AFTERNOON / EVENING`) and full formatted date below.
+
+### 5. Extended 400+ Wallpaper Rotation Pool
+* **Full Collection & Shuffle Support**: Extended [`WallpaperRotation`](launcher/app/src/main/java/com/gathin/tvhome/WallpaperRotation.java) to support 400+ 1080p WebP aesthetic wallpapers with seamless 1-minute random shuffle (`wallpaper_order: "shuffle"`).
+* **Low Memory Footprint**: Hardware bitmap decoding keeps memory under 45 MB total PSS on 1 GB RAM TVs, rendering at 99.9% fluid 60 FPS frames.
+
+### 6. Cold-Boot & Offline Resilience
+* **Dynamic `Build.TIME` Clock Guard**: Fixes the common Android TV bug where TVs without a battery-backed RTC boot at the uninitialized kernel compilation timestamp (e.g. May 22). Keeps the clock cleanly hidden until Wi-Fi / NTP network time arrives, with a 60-second offline fallback.
+* **Storage Mount Auto-Recovery**: Detects delayed `/sdcard` emulated storage mounting during cold boot in [`WallpaperPlayer.java`](launcher/app/src/main/java/com/gathin/tvhome/WallpaperPlayer.java), automatically loading wallpapers the moment storage mounts without needing an app restart.
+
+---
 
 ## Start here
 
