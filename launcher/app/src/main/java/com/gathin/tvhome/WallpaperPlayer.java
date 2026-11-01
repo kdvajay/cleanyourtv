@@ -91,7 +91,23 @@ final class WallpaperPlayer {
         names = config.wallpaperCaptions && config.wallpaperEnabled && !files.isEmpty()
                 ? WallpaperCaptions.read(files.get(0).getParentFile()) : Collections.emptyMap();
         caption = names.isEmpty() ? null : makeCaption(context, root);
-        if (config.wallpaperEnabled && !files.isEmpty()) {
+        if (config.wallpaperEnabled) {
+            loadWallpapers();
+        }
+    }
+
+    private void loadWallpapers() {
+        if (files.isEmpty()) {
+            File dir = Config.dir(root.getContext());
+            if (dir != null) {
+                files.addAll(WallpaperRotation.images(new File(dir, "wallpapers")));
+                if (files.isEmpty()) {
+                    File single = new File(dir, Config.WALLPAPER_NAME);
+                    if (single.isFile() && single.length() > 0) files.add(single);
+                }
+            }
+        }
+        if (!files.isEmpty() && image.getParent() == null) {
             root.addView(image, 0, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             showFirst();
@@ -130,6 +146,7 @@ final class WallpaperPlayer {
 
     void start() {
         active = true;
+        loadWallpapers();
         update();
     }
 
@@ -166,7 +183,9 @@ final class WallpaperPlayer {
     }
 
     void update() {
-        if (!active || closed || loading || files.isEmpty()) return;
+        if (!active || closed || loading) return;
+        if (files.isEmpty()) loadWallpapers();
+        if (files.isEmpty()) return;
         String previous = preferences.getString("image", "");
         // A picture outside the time of day's group (the group changed) is replaced at once, not after the interval.
         List<File> playable = playable();

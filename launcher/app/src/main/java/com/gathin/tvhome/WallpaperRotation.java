@@ -29,7 +29,7 @@ final class WallpaperRotation {
                     && (name.endsWith(".jpg") || name.endsWith(".jpeg")
                     || name.endsWith(".png") || name.endsWith(".webp"))) {
                 result.add(entry);
-                if (result.size() == 100) break;
+                if (result.size() >= 1500) break;
             }
         }
         return result;

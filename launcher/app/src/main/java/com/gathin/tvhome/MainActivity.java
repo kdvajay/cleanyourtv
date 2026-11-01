@@ -94,7 +94,7 @@ import java.util.Set;
 /**
  * tvOS style home: black, a pinned dock row, an app grid, and one glass highlight that springs between tiles.
  */
-public class MainActivity extends Activity implements AppAdapter.TileListener {
+public class MainActivity extends Activity implements AppAdapter.TileListener, Runnable {
     @Override
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(LauncherLocale.wrap(base));   // locale
@@ -407,6 +407,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         @Override
         public void onReceive(Context context, Intent intent) {
             updateClockVisibility();
+            if (rollingClock) lastSec = -1;
         }
     };
     private final Runnable minuteTick = new Runnable() {
@@ -422,6 +423,25 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             handler.postDelayed(this, MINUTE_MS);
         }
     };
+
+    private boolean rollingClock;
+    private TextView clockSec;
+    private int lastSec = -1;
+
+    @Override
+    public void run() {
+        if (!rollingClock || clockSec == null) return;
+        long now = System.currentTimeMillis();
+        int s = (int) ((now / 1000) % 60);
+        if (s != lastSec) {
+            lastSec = s;
+            clockSec.setText(s < 10 ? ":0" + s : ":" + s);
+            clockSec.setTranslationY(6f);
+            clockSec.setAlpha(0.2f);
+            clockSec.animate().translationY(0f).alpha(1f).setDuration(220).start();
+        }
+        handler.postDelayed(this, Math.max(20, 1000 - (now % 1000)));
+    }
 
     private java.util.Map<Integer, String> homeAppKeys = java.util.Collections.emptyMap();
     /** clock_format, for the race panel's session times (the TextClocks take it in onCreate). */
@@ -519,6 +539,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // The clock's own white for the date and the line before it, instead of their dimmed whites.
             ((TextView) findViewById(R.id.date)).setTextColor(Color.WHITE);
             findViewById(R.id.clockDivider).setBackgroundColor(Color.WHITE);
+        }
+        rollingClock = cfg.rollingClock;
+        if (rollingClock) {
+            clockSec = findViewById(R.id.clockSec);
+            clockSec.setVisibility(View.VISIBLE);
+            if (cfg.headerWhite) clockSec.setTextColor(Color.WHITE);
         }
         if (getResources().getBoolean(R.bool.rtl_menu_bar)) {
             // Center Hebrew greetings over the numeric time, independent of a visible AM/PM label. The clock's row
@@ -1068,6 +1094,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         sky.update();
         wallpaperPlayer.start();
         handler.postDelayed(minuteTick, MINUTE_MS);
+        if (rollingClock) {
+            handler.removeCallbacks(this);
+            handler.post(this);
+        }
         if (festive && lamp != null) {
             lamp.start();
             LocalDate today = LocalDate.now();
@@ -1246,6 +1276,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         ambient.animate().cancel();
         heroArt.animate().cancel();
         handler.removeCallbacks(minuteTick);
+        if (rollingClock) handler.removeCallbacks(this);
         handler.removeCallbacks(openWhenOnline);
         startPending = null;   // leaving Home before the network came back: the boot's app stays closed
         stopStats();
@@ -2585,11 +2616,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final Runnable clockCheck = this::updateClockVisibility;
 
     private void updateClockVisibility() {
-        boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
+        long minValidTime = Math.max(TIME_VALID_AFTER_MS, Build.TIME + 86_400_000L);
+        boolean valid = System.currentTimeMillis() >= minValidTime || SystemClock.elapsedRealtime() > 60_000L;
         clockBlock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
         handler.removeCallbacks(clockCheck);
         if (valid) {
             updateGreeting();
+            wallpaperPlayer.update();
         } else {
             handler.postDelayed(clockCheck, 1_000L);
         }

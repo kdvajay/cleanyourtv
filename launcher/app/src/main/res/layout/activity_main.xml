@@ -217,6 +217,17 @@
                         android:letterSpacing="-0.04"
                         android:includeFontPadding="false" />
 
+                    <TextView
+                        android:id="@+id/clockSec"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="9dp"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="18sp"
+                        android:visibility="gone" />
+
                     <TextClock
                         android:id="@+id/ampm"
                         android:layout_width="wrap_content"

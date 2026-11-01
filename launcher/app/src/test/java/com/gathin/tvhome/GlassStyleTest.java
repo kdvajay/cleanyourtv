@@ -20,6 +20,12 @@ public class GlassStyleTest {
     }
 
     @Test
+    public void noneByNameAnyCase() {
+        assertEquals(Config.GLASS_NONE, Config.glassStyle("none"));
+        assertEquals(Config.GLASS_NONE, Config.glassStyle(" None "));
+    }
+
+    @Test
     public void anythingElseIsGlass() {
         assertEquals(Config.GLASS_DEFAULT, Config.glassStyle("glass"));
         assertEquals(Config.GLASS_DEFAULT, Config.glassStyle(""));

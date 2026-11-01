@@ -1,11 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Banner for a Live TV app tile (config.xml, app_banners): a magenta field with the Live TV glyph. -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:width="320dp" android:height="180dp">
-        <shape android:shape="rectangle">
-            <gradient android:angle="315" android:startColor="#FFE20074" android:endColor="#FF8C0049" />
-        </shape>
-    </item>
-    <item android:width="76dp" android:height="76dp" android:gravity="center"
-        android:drawable="@drawable/ic_livetv" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="180dp" android:height="101dp" android:viewportWidth="180" android:viewportHeight="101"><path android:strokeColor="#FFF" android:strokeWidth="3.2" android:pathData="M65,34h50a8,8 0 0 1 8,8v24a8,8 0 0 1 -8,8H65a8,8 0 0 1 -8,-8V42a8,8 0 0 1 8,-8zM90,74v6M80,80h20M82,24l8,10 8,-10"/></vector>

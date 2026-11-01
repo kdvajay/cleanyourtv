@@ -11,9 +11,14 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Outline;
 import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
+import android.graphics.drawable.AdaptiveIconDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -218,9 +223,19 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
+    private final boolean borderlessTiles;
+    private final boolean whiteIcons;
     /** Packages drawn from their icon and name even when they have a banner (config.xml icon_tiles). */
     private final Set<String> iconTiles;
     private final List<Entry> items = new ArrayList<>();
+
+    private static final PorterDuffColorFilter WHITE_FILTER = new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN);
+    private static final ColorMatrixColorFilter MONO_FILTER = new ColorMatrixColorFilter(new float[] {
+        0.3f, 0.59f, 0.11f, 0, 0,
+        0.3f, 0.59f, 0.11f, 0, 0,
+        0.3f, 0.59f, 0.11f, 0, 0,
+        0,    0,     0,     1, 0
+    });
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
@@ -248,6 +263,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.appLabels = cfg.appLabels;
         this.appBanners = cfg.appBanners;
         this.uniformTiles = cfg.uniformTiles;
+        this.borderlessTiles = cfg.borderlessTiles;
+        this.whiteIcons = cfg.whiteIcons;
         // Tiles keep their identity across reload(), so a focused tile stays on its app instead of
         // its view being rebound to whatever app now sits in that slot.
         setHasStableIds(true);
@@ -298,13 +315,15 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (!seen.add(pkg + '\n' + label)) continue;
             Drawable banner = null;
             // uniform_tiles draws the icon, so an app's banner is never loaded. A module card keeps its banner.
-            if (!(uniformTiles && card == null)) {
+            if (!((uniformTiles || whiteIcons) && card == null)) {
                 banner = bundledBanner(appBanners.get(pkg));
                 if (banner == null) banner = iconTiles.contains(pkg) ? iconBanner(ri.loadIcon(pm)) : loadBanner(pm, ri);
+            } else if (card == null) {
+                banner = bundledBanner(appBanners.get(pkg));
             }
             // The icon is only drawn (and sampled for the glow) when there is no banner, so a tile with a
             // banner skips loading and decoding it.
-            Drawable icon = banner == null ? ri.loadIcon(pm) : null;
+            Drawable icon = banner == null ? resolveIcon(ri.loadIcon(pm), whiteIcons) : null;
             if (card != null) {
                 fresh.add(new Entry(Entry.CARD, label, component, banner, icon, card.caption, card.accent));
             } else {
@@ -434,7 +453,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         name.setLayoutParams(nameLp);
         // A sideways row would stretch a match_parent item across the whole screen: give it a grid column's width.
         if (singleRow) v.getLayoutParams().width = inner / dockSize;
-        if (uniformTiles) {
+        if (uniformTiles || borderlessTiles) {
             // tvOS-style tile: a large centred mark, no caption inside the card.
             View icon = v.findViewById(R.id.icon);
             FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
@@ -452,7 +471,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             View label = v.findViewById(R.id.label);
             label.setPadding(label.getPaddingLeft(), label.getPaddingTop(), label.getPaddingRight(), Math.round(4f * density));
         }
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot, borderlessTiles);
     }
 
     @Override
@@ -489,23 +508,33 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
         // A fully opaque banner covers the whole card (centerCrop), so the card's own fill under it is drawn for
         // nothing on every frame; keep it under banners with transparent parts and under icon tiles.
-        h.card.setBackground(e.banner != null && e.banner.getOpacity() == PixelFormat.OPAQUE ? null : h.cardBackground);
+        h.card.setBackground(borderlessTiles ? null : (e.banner != null && e.banner.getOpacity() == PixelFormat.OPAQUE ? null : h.cardBackground));
         if (uniformTiles && e.banner == null) {
-            if (e.backdrop == null) e.backdrop = backdrop(e.icon, ambientColorAt(position));
-            h.card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, e.backdrop));
+            if (!borderlessTiles) {
+                if (e.backdrop == null) e.backdrop = backdrop(e.icon, ambientColorAt(position));
+                h.card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, e.backdrop));
+            } else {
+                h.card.setBackground(null);
+            }
         }
         if (e.banner != null) {
             h.banner.setImageDrawable(e.banner);
             h.banner.setVisibility(View.VISIBLE);
+            h.icon.setImageDrawable(null);
             h.icon.setVisibility(View.GONE);
             h.label.setVisibility(View.GONE);
         } else {
             h.banner.setImageDrawable(null);
             h.banner.setVisibility(View.GONE);
+            if (whiteIcons) {
+                h.icon.setColorFilter(isSolidIcon(e.icon) ? MONO_FILTER : WHITE_FILTER);
+            } else {
+                h.icon.clearColorFilter();
+            }
             h.icon.setImageDrawable(e.icon);
             h.icon.setVisibility(View.VISIBLE);
             h.label.setText(e.label);
-            h.label.setVisibility(uniformTiles ? View.GONE : View.VISIBLE);
+            h.label.setVisibility(uniformTiles || whiteIcons ? View.GONE : View.VISIBLE);
         }
         h.card.setOnClickListener(v -> launch(e));
         h.card.setOnLongClickListener(v -> {
@@ -674,7 +703,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     float focusScale() {
-        return !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+        return !animations ? 1f : borderlessTiles ? 1.25f : advancedEffects ? 1.12f : 1.10f;
     }
 
     /** A vivid colour sampled from the app's banner (or icon), cached per entry; a card's accent when it set one. */
@@ -897,6 +926,35 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return 16f * density * Math.min(1f, tileWidthPx / (DESIGN_W_DP * density));
     }
 
+    static Drawable resolveIcon(Drawable raw, boolean whiteIcons) {
+        if (raw == null || !whiteIcons) return raw;
+        if (raw instanceof AdaptiveIconDrawable) {
+            Drawable fg = ((AdaptiveIconDrawable) raw).getForeground();
+            if (fg != null) return fg;
+        }
+        return raw;
+    }
+
+    static boolean isSolidIcon(Drawable d) {
+        if (d == null) return false;
+        if (d.getOpacity() == PixelFormat.OPAQUE) return true;
+        try {
+            Rect s = new Rect(d.getBounds());
+            Bitmap b = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888);
+            d.setBounds(0, 0, 4, 4);
+            d.draw(new Canvas(b));
+            d.setBounds(s);
+            int n = 0;
+            for (int i = 0; i < 16; i++) {
+                if ((b.getPixel(i & 3, i >> 2) >>> 24) > 128) n++;
+            }
+            b.recycle();
+            return n > 8;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     static final class Holder extends RecyclerView.ViewHolder {
         final View card;
         /** item_app.xml's tile_bg: the dark card behind an icon tile, or behind a banner that has transparent parts. */
@@ -911,11 +969,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         /** Alpha of the name while the tile is not focused (always_show_names). */
         final float restNameAlpha;
         final boolean overshoot;
+        final float scale;
         /** A dock tile: it grows in place without advanced_effects' lift, which reads as off-centre in the band (#2135). */
         boolean inDock;
 
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, boolean borderlessTiles) {
             super(v);
             card = v.findViewById(R.id.card);
             cardBackground = card.getBackground();
@@ -928,6 +987,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             this.reducedMotion = reducedMotion;
             this.restNameAlpha = restNameAlpha;
             this.overshoot = overshoot;
+            this.scale = !animations ? 1f : borderlessTiles ? 1.25f : advancedEffects ? 1.12f : 1.10f;
 
             final float density = v.getResources().getDisplayMetrics().density;
             card.setOutlineProvider(new ViewOutlineProvider() {
@@ -951,7 +1011,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 view.animate().cancel();
                 banner.animate().cancel();
                 name.animate().cancel();
-                float scale = !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
                 float s = focused ? scale : 1f;
                 if (!animations) {
                     view.setScaleX(1f);
