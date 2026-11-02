@@ -11,7 +11,7 @@
 
 ## 📸 Live Screen Captures (Xiaomi Smart TV A 2024)
 
-| Cosmic Wallpaper & Line-Art Dock | Cinematic Itachi Theme & Rolling Clock |
+| Cosmic Wallpaper & Line-Art Dock | 
 |---|---|
 | ![Cosmic Live Capture](docs/screenshots/live_nebula.jpg) |
 | *Borderless vector icons & rolling digital seconds ticker* | 
