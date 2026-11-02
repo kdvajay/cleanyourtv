@@ -13,8 +13,8 @@
 
 | Cosmic Wallpaper & Line-Art Dock | Cinematic Itachi Theme & Rolling Clock |
 |---|---|
-| ![Cosmic Live Capture](docs/screenshots/live_nebula.jpg) | ![Itachi Live Capture](docs/screenshots/live_itachi.jpg) |
-| *Borderless vector icons & rolling digital seconds ticker* | *1080p anime wallpaper with floating borderless dock* |
+| ![Cosmic Live Capture](docs/screenshots/live_nebula.jpg) |
+| *Borderless vector icons & rolling digital seconds ticker* | 
 
 | Retro Pixel Art Theme | Smart Monochrome Icon Fallback |
 |---|---|
