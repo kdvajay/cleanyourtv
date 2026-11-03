@@ -27,6 +27,12 @@ import android.graphics.Rect;
 import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
+import android.bluetooth.BluetoothA2dp;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProfile;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvContract;
@@ -35,10 +41,14 @@ import android.media.tv.TvInputManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.net.NetworkRequest;
+import android.net.TransportInfo;
 import android.net.Uri;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import java.lang.reflect.Method;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -182,8 +192,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
     private boolean showInputsPill = true;
     private TextView btnWifi;
+    private TextView btnBluetooth;
     /** The network pill's icon as last set, so a refresh that changes nothing does not lay the top bar out again. */
     private int wifiIcon;
+    private int bluetoothIcon;
+    private boolean bluetoothIconOnly;
+    private BluetoothA2dp a2dpProfile;
+    private BluetoothHeadset headsetProfile;
     /** The pills have been filled in once; later resumes refresh them after the first frame. */
     private boolean pillsShown;
     private TextView shamsiDate;
@@ -563,6 +578,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             clockRow.addOnLayoutChangeListener(centerGreeting);
         }
         btnWifi = findViewById(R.id.btnWifi);
+        btnBluetooth = findViewById(R.id.btnBluetooth);
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
         raceCalendar = cfg.raceCalendar;
@@ -806,9 +822,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
+        btnBluetooth.setOnClickListener(v -> openBluetoothPill());
         btnVpn.setOnClickListener(v -> openVpnPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
+            return true;
+        });
+        btnBluetooth.setOnLongClickListener(v -> {
+            open(systemIntent(Settings.ACTION_BLUETOOTH_SETTINGS));
             return true;
         });
         launcherSettingsButton = cfg.launcherSettingsButton;
@@ -825,6 +846,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         btnReorder.setOnClickListener(v -> toggleReorder());
         btnReorder.setVisibility(cfg.reorderButton ? View.VISIBLE : View.GONE);
         if (!cfg.showNetworkPill) btnWifi.setVisibility(View.GONE);
+        if (!cfg.showBluetoothPill) btnBluetooth.setVisibility(View.GONE);
         showInputsPill = cfg.showInputsPill;
         showInputsMenuRow = cfg.showInputsPill;
         btnLibraryTop = findViewById(R.id.btnLibraryTop);
@@ -837,6 +859,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
+        bluetoothIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
         if (cfg.wifiStatusColor) {
             wifiPlainTint = btnWifi.getCompoundDrawableTintList();
             wifiOnlineTint = getColorStateList(R.color.pill_icon_online);
@@ -851,6 +874,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             showInputsPill = false;
             btnInputs.setVisibility(View.GONE);
             btnWifi.setVisibility(View.GONE);
+            btnBluetooth.setVisibility(View.GONE);
             ((TextView) btnSettings).setText(R.string.settings);
             ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
             if (!iconOnlyButtons) makeIconOnly((TextView) btnSettings);
@@ -864,8 +888,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             topButtons.setGravity(Gravity.CENTER_VERTICAL);
         }
         if (iconOnlyButtons) {
-            if (cfg.wifiLabelWidth > 0) btnWifi.setMaxWidth(Math.round(cfg.wifiLabelWidth * density));
-            else makeIconOnly(btnWifi);
+            if (cfg.wifiLabelWidth > 0) {
+                int maxW = Math.round(cfg.wifiLabelWidth * density);
+                btnWifi.setMaxWidth(maxW);
+                btnBluetooth.setMaxWidth(maxW);
+            } else {
+                makeIconOnly(btnWifi);
+                makeIconOnly(btnBluetooth);
+            }
             makeIconOnly((TextView) btnSettings);
         }
         if (cfg.iconOnlyInputs) makeIconOnly((TextView) btnInputs);
@@ -899,13 +929,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         };
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
+        btnBluetooth.setOnKeyListener(pillKeys);
         btnVpn.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
         for (View button : topAppButtons) button.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnVpn, btnReorder, btnLibraryTop, btnSettings));
+            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnBluetooth, btnVpn, btnReorder, btnLibraryTop, btnSettings));
             pills.addAll(topAppButtons);
             for (View button : pills) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
@@ -943,6 +974,51 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                     .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
                     .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
                     .build(), vpnCallback);
+        }
+
+        BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (btAdapter != null) {
+            try {
+                btAdapter.getProfileProxy(this, new BluetoothProfile.ServiceListener() {
+                    @Override
+                    public void onServiceConnected(int profile, BluetoothProfile proxy) {
+                        if (profile == BluetoothProfile.A2DP) a2dpProfile = (BluetoothA2dp) proxy;
+                        else if (profile == BluetoothProfile.HEADSET) headsetProfile = (BluetoothHeadset) proxy;
+                        handler.post(MainActivity.this::updateBluetoothLabel);
+                    }
+
+                    @Override
+                    public void onServiceDisconnected(int profile) {
+                        if (profile == BluetoothProfile.A2DP) a2dpProfile = null;
+                        else if (profile == BluetoothProfile.HEADSET) headsetProfile = null;
+                        handler.post(MainActivity.this::updateBluetoothLabel);
+                    }
+                }, BluetoothProfile.A2DP);
+                btAdapter.getProfileProxy(this, new BluetoothProfile.ServiceListener() {
+                    @Override
+                    public void onServiceConnected(int profile, BluetoothProfile proxy) {
+                        if (profile == BluetoothProfile.HEADSET) headsetProfile = (BluetoothHeadset) proxy;
+                        handler.post(MainActivity.this::updateBluetoothLabel);
+                    }
+
+                    @Override
+                    public void onServiceDisconnected(int profile) {
+                        if (profile == BluetoothProfile.HEADSET) headsetProfile = null;
+                        handler.post(MainActivity.this::updateBluetoothLabel);
+                    }
+                }, BluetoothProfile.HEADSET);
+            } catch (Exception ignored) {}
+        }
+
+        IntentFilter btFilter = new IntentFilter();
+        btFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        btFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+        btFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        btFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(bluetoothReceiver, btFilter, Context.RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(bluetoothReceiver, btFilter);
         }
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent())) openInputsIfAsked(getIntent());
@@ -1086,6 +1162,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             refreshPillsAfterNextDraw();
         } else {
             updateWifiLabel();
+            updateBluetoothLabel();
             updateInputsButton();
             pillsShown = true;
         }
@@ -1348,6 +1425,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         if (cm != null) {
             cm.unregisterNetworkCallback(networkCallback);
             cm.unregisterNetworkCallback(vpnCallback);
+        }
+        try {
+            unregisterReceiver(bluetoothReceiver);
+        } catch (Exception ignored) {}
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter != null) {
+            try {
+                if (a2dpProfile != null) {
+                    adapter.closeProfileProxy(BluetoothProfile.A2DP, a2dpProfile);
+                    a2dpProfile = null;
+                }
+                if (headsetProfile != null) {
+                    adapter.closeProfileProxy(BluetoothProfile.HEADSET, headsetProfile);
+                    headsetProfile = null;
+                }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -2623,6 +2716,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         if (valid) {
             updateGreeting();
             wallpaperPlayer.update();
+            updateBluetoothLabel();
         } else {
             handler.postDelayed(clockCheck, 1_000L);
         }
@@ -2821,6 +2915,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                 handler.post(() -> {
                     if (isDestroyed()) return;
                     updateWifiLabel();
+                    updateBluetoothLabel();
                     updateInputsButton();
                 });
                 return true;
@@ -2869,6 +2964,48 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                 WifiInfo info = wm != null ? wm.getConnectionInfo() : null;
                 String ssid = info != null ? info.getSSID() : null;
                 flame = info != null ? Math.max(1, Math.min(4, WifiManager.calculateSignalLevel(info.getRssi(), 5))) : 3;
+                if (ssid == null || ssid.isEmpty() || ssid.contains("unknown") || ssid.equals("0x")) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        for (Network net : cm != null ? cm.getAllNetworks() : new Network[0]) {
+                            NetworkCapabilities c = cm.getNetworkCapabilities(net);
+                            if (c != null && c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                                TransportInfo ti = c.getTransportInfo();
+                                if (ti instanceof WifiInfo) {
+                                    String s = ((WifiInfo) ti).getSSID();
+                                    if (s != null && !s.isEmpty() && !s.contains("unknown") && !s.equals("0x")) {
+                                        ssid = s;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (ssid == null || ssid.isEmpty() || ssid.contains("unknown") || ssid.equals("0x")) {
+                    NetworkInfo ni = cm != null ? cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI) : null;
+                    if (ni != null && ni.getExtraInfo() != null) {
+                        String s = ni.getExtraInfo();
+                        if (!s.isEmpty() && !s.contains("unknown") && !s.equals("0x")) {
+                            ssid = s;
+                        }
+                    }
+                }
+                if ((ssid == null || ssid.isEmpty() || ssid.contains("unknown") || ssid.equals("0x")) && wm != null) {
+                    try {
+                        List<WifiConfiguration> configs = wm.getConfiguredNetworks();
+                        if (configs != null) {
+                            for (WifiConfiguration c : configs) {
+                                if (c.status == WifiConfiguration.Status.CURRENT && c.SSID != null) {
+                                    String s = c.SSID;
+                                    if (!s.isEmpty() && !s.contains("unknown") && !s.equals("0x")) {
+                                        ssid = s;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
                 if (ssid != null) {
                     ssid = ssid.replace("\"", "").trim();
                     if (!ssid.isEmpty() && !ssid.contains("unknown") && !ssid.equals("0x")) text = ssid;
@@ -2927,6 +3064,137 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                 btnWifi.setCompoundDrawableTintList(tint);
             }
         }
+    }
+
+    private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            handler.post(MainActivity.this::updateBluetoothLabel);
+        }
+    };
+
+    private void openBluetoothPill() {
+        Intent standard = systemIntent(Settings.ACTION_BLUETOOTH_SETTINGS);
+        ComponentName tvAccessories = new ComponentName("com.android.tv.settings", "com.android.tv.settings.accessories.AccessoryActivity");
+        Intent tvIntent = new Intent().setComponent(tvAccessories);
+        if (getPackageManager().resolveActivity(tvIntent, 0) != null) {
+            open(tvIntent);
+        } else {
+            open(standard);
+        }
+    }
+
+    private void updateBluetoothLabel() {
+        if (btnBluetooth == null || btnBluetooth.getVisibility() == View.GONE) return;
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter == null || !adapter.isEnabled()) {
+            setBluetoothPillText(getString(R.string.bluetooth), false);
+            return;
+        }
+        String connectedName = getConnectedBluetoothDeviceName(adapter);
+        if (!TextUtils.isEmpty(connectedName)) {
+            setBluetoothPillText(connectedName, true);
+        } else {
+            setBluetoothPillText(getString(R.string.bluetooth), false);
+        }
+    }
+
+    private void setBluetoothPillText(String text, boolean connected) {
+        int icon = connected ? R.drawable.ic_bluetooth_connected : R.drawable.ic_bluetooth;
+        if (icon != bluetoothIcon) {
+            bluetoothIcon = icon;
+            btnBluetooth.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+        }
+        if (!TextUtils.equals(btnBluetooth.getText(), text)) {
+            btnBluetooth.setText(text);
+        }
+        if (bluetoothIconOnly) {
+            btnBluetooth.setContentDescription(text);
+            btnBluetooth.setText(null);
+        }
+    }
+
+    private String getConnectedBluetoothDeviceName(BluetoothAdapter adapter) {
+        try {
+            if (a2dpProfile != null) {
+                List<BluetoothDevice> a2dpDevices = a2dpProfile.getConnectedDevices();
+                if (a2dpDevices != null && !a2dpDevices.isEmpty()) {
+                    String name = getDeviceName(a2dpDevices.get(0));
+                    if (!TextUtils.isEmpty(name)) return name;
+                }
+            }
+            if (headsetProfile != null) {
+                List<BluetoothDevice> headsetDevices = headsetProfile.getConnectedDevices();
+                if (headsetDevices != null && !headsetDevices.isEmpty()) {
+                    String name = getDeviceName(headsetDevices.get(0));
+                    if (!TextUtils.isEmpty(name)) return name;
+                }
+            }
+            Set<BluetoothDevice> bonded = adapter.getBondedDevices();
+            if (bonded != null && !bonded.isEmpty()) {
+                Method isConnectedMethod = null;
+                try {
+                    isConnectedMethod = BluetoothDevice.class.getMethod("isConnected");
+                } catch (Exception ignored) {}
+
+                BluetoothDevice inputDevice = null;
+                BluetoothDevice anyConnected = null;
+
+                for (BluetoothDevice device : bonded) {
+                    boolean connected = false;
+                    if (isConnectedMethod != null) {
+                        try {
+                            Object res = isConnectedMethod.invoke(device);
+                            if (res instanceof Boolean && (Boolean) res) connected = true;
+                        } catch (Exception ignored) {}
+                    }
+                    if (connected) {
+                        BluetoothClass bc = device.getBluetoothClass();
+                        int dc = bc != null ? bc.getDeviceClass() : 0;
+                        if (bc != null && (bc.hasService(BluetoothClass.Service.AUDIO)
+                                || dc == BluetoothClass.Device.AUDIO_VIDEO_HEADPHONES
+                                || dc == BluetoothClass.Device.AUDIO_VIDEO_WEARABLE_HEADSET
+                                || dc == BluetoothClass.Device.AUDIO_VIDEO_LOUDSPEAKER
+                                || dc == BluetoothClass.Device.AUDIO_VIDEO_PORTABLE_AUDIO)) {
+                            String name = getDeviceName(device);
+                            if (!TextUtils.isEmpty(name)) return name;
+                        }
+                        if (dc == BluetoothClass.Device.Major.PERIPHERAL
+                                || dc == 1344
+                                || dc == 1472
+                                || (bc != null && bc.getMajorDeviceClass() == BluetoothClass.Device.Major.PERIPHERAL)) {
+                            if (inputDevice == null) inputDevice = device;
+                        }
+                        if (anyConnected == null) anyConnected = device;
+                    }
+                }
+                if (inputDevice != null) {
+                    String name = getDeviceName(inputDevice);
+                    if (!TextUtils.isEmpty(name)) return name;
+                }
+                if (anyConnected != null) {
+                    String name = getDeviceName(anyConnected);
+                    if (!TextUtils.isEmpty(name)) return name;
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private static String getDeviceName(BluetoothDevice device) {
+        if (device == null) return null;
+        String name = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                name = device.getAlias();
+            } catch (Exception ignored) {}
+        }
+        if (TextUtils.isEmpty(name)) {
+            try {
+                name = device.getName();
+            } catch (Exception ignored) {}
+        }
+        return name != null ? name.trim() : null;
     }
 
     /** config.xml icon_only_buttons. */
@@ -3074,7 +3342,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             if (btnVpn.getVisibility() == View.GONE) return;
             boolean focused = btnVpn.hasFocus();
             btnVpn.setVisibility(View.GONE);
-            if (focused) (btnWifi.getVisibility() == View.VISIBLE ? btnWifi : firstTopButton()).requestFocus();
+            if (focused) (btnBluetooth.getVisibility() == View.VISIBLE ? btnBluetooth : btnWifi.getVisibility() == View.VISIBLE ? btnWifi : firstTopButton()).requestFocus();
             return;
         }
         if (state != vpnPillState) {
@@ -3572,6 +3840,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         if (!TextUtils.isEmpty(network)) {
             TextView status = rows.getChildAt(rows.getChildCount() - 1).findViewById(R.id.status);
             status.setText(network);
+            status.setVisibility(View.VISIBLE);
+        }
+        addInputRow(rows, popup, R.drawable.ic_bluetooth, getString(R.string.bluetooth), -1, this::openBluetoothPill);
+        CharSequence btStatus = bluetoothIconOnly ? btnBluetooth.getContentDescription() : btnBluetooth.getText();
+        if (!TextUtils.isEmpty(btStatus)) {
+            TextView status = rows.getChildAt(rows.getChildCount() - 1).findViewById(R.id.status);
+            status.setText(btStatus);
             status.setVisibility(View.VISIBLE);
         }
         addInputRow(rows, popup, R.drawable.ic_swap_vert, getString(R.string.reorder), -1, this::toggleReorder);
