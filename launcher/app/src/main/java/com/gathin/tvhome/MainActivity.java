@@ -221,6 +221,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
     private long rotationStart;
     private long lastEndedRead;
     private final Runnable turnTick = this::updatePanel;
+    private final android.database.ContentObserver watchNextObserver =
+            new android.database.ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    super.onChange(selfChange);
+                    loadContinueWatching();
+                }
+            };
     /** config.xml show_stats, overridable by a theme. Off: the line is gone and nothing is read. */
     private boolean showStats;
     /** config.xml inputs_connected_only: the Inputs menu lists only connected inputs, the rest behind "More inputs". */
@@ -556,9 +564,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         cinematicWhiteFocus = cfg.cinematicWhiteFocus;
         heroArtAlpha = cfg.cinematicArt / 100f;
         if (cinematic) setUpCinematicShelf(cfg.cinematicScrim);
-        // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
-        // still follows the dock.
-        if (!cfg.dockTitle) hero.setVisibility(View.GONE);
+        // The large font hero title above dock row is disabled; dock tiles show their titles directly
+        // below the icon upon hover/focus, exactly like the bottom rows.
+        if (hero != null) hero.setVisibility(View.GONE);
+        try {
+            getContentResolver().registerContentObserver(
+                    ContinueWatchingProvider.WATCH_NEXT_URI,
+                    true,
+                    watchNextObserver
+            );
+        } catch (Exception ignored) {
+        }
         greeting = findViewById(R.id.greeting);
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
@@ -1532,6 +1548,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         cancelHoldOk();
         if (gameDay != null) gameDay.shutdown();
         unregisterReceiver(packageReceiver);
+        try {
+            getContentResolver().unregisterContentObserver(watchNextObserver);
+        } catch (Exception ignored) {
+        }
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
@@ -2040,7 +2060,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                 if (!animations || reducedMotion) grid.scrollBy(0, dy);
                 else grid.smoothScrollBy(0, dy);
             }
-            showHero(position, scroll ? r.top - dy : r.top);
+            if (hero != null) hero.setVisibility(View.GONE);
+            showGlowOnly(position);
         } else {
             // Below the dock (or in a plain grid) the glow follows the tile without the big name; letting it
             // fade out left the grid on plain black.
@@ -2070,67 +2091,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
     // ---- top shelf -------------------------------------------------------------------------------
 
     private void showHero(int position, float dockTopInRoot) {
-        String label = adapter.labelAt(position);
-        int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
-        boolean changed = !label.contentEquals(heroName.getText());
-        if (cinematic && heroArtAlpha > 0f) showHeroArt(position);
-
-        if (!animations || reducedMotion) {
-            // Snap the shelf instead of sliding and fading it: each of those frames repaints the
-            // full-screen panel, and this switch exists for the GPUs that cannot afford it.
-            hero.animate().cancel();
-            ambient.animate().cancel();
-            fillHero(position, label);
-            hero.setY(y);
-            hero.setTranslationX(0f);
-            hero.setAlpha(1f);
-            if (ambientGlow) {
-                setAmbient(color);
-                ambient.setAlpha(1f);
-            }
-            heroShown = true;
-            return;
-        }
-
-        if (!heroShown) {
-            stopAmbientAnimation();
-            hero.animate().cancel();
-            ambient.animate().cancel();
-            fillHero(position, label);
-            hero.setY(y);
-            hero.setTranslationX(0f);
-            hero.animate().alpha(1f).setDuration(260).start();
-            if (ambientGlow) {
-                setAmbient(color);
-                ambient.animate().alpha(1f).setDuration(600).start();
-            }
-            heroShown = true;
-        } else if (changed) {
-            if (advancedEffects) hero.animate().cancel();
-            hero.animate().alpha(0f).translationX(-12 * density).setDuration(120).withEndAction(() -> {
-                fillHero(position, label);
-                hero.setY(y);
-                hero.setTranslationX(12 * density);
-                hero.animate().alpha(1f).translationX(0f).setDuration(200).start();
-            }).start();
-            if (ambientGlow && advancedEffects) {
-                transitionAmbient(color);
-            } else if (ambientGlow && color != ambientColor) {
-                ambient.animate().alpha(0.35f).setDuration(200).withEndAction(() -> {
-                    setAmbient(color);
-                    ambient.animate().alpha(1f).setDuration(500).start();
-                }).start();
-            }
-        } else {
-            hero.setY(y);
-            // onPause cancels the fade-ins, and a second Home during one lands on the same tile, which starts none:
-            // finish them, or the shelf and the glow stay dim until focus moves to another app.
-            if (hero.getAlpha() < 1f) hero.animate().alpha(1f).setDuration(260).start();
-            if (ambientGlow && color == ambientColor && ambient.getAlpha() < 1f) {
-                ambient.animate().alpha(1f).setDuration(600).start();
-            }
-        }
+        if (hero != null) hero.setVisibility(View.GONE);
+        showGlowOnly(position);
     }
 
     /** The shelf's text for this dock app: its name and, on the cinematic shelf, "Last opened" and the dots. */

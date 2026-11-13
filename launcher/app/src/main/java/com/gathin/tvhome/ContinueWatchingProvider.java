@@ -18,7 +18,7 @@ import java.util.List;
  */
 public final class ContinueWatchingProvider {
     private static final String TAG = "TvHome.ContinueWatching";
-    private static final Uri WATCH_NEXT_URI = Uri.parse("content://android.media.tv/watch_next_program");
+    public static final Uri WATCH_NEXT_URI = Uri.parse("content://android.media.tv/watch_next_program");
 
     private ContinueWatchingProvider() {
     }

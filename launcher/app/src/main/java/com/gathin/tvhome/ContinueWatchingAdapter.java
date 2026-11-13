@@ -132,6 +132,9 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                     if (v.getParent() instanceof View) {
                         ((View) v.getParent()).invalidate();
                     }
+                    poster.animate().alpha(0.88f).setDuration(180).start();
+                } else {
+                    poster.animate().alpha(0.70f).setDuration(180).start();
                 }
             });
 
@@ -199,6 +202,7 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                 android.graphics.Bitmap cached = BITMAP_CACHE.get(uriStr);
                 if (cached != null) {
                     poster.setImageBitmap(cached);
+                    poster.setAlpha(cardRoot.isFocused() ? 0.88f : 0.70f);
                     poster.setVisibility(View.VISIBLE);
                 } else {
                     poster.setVisibility(View.INVISIBLE);
@@ -222,6 +226,7 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                                     cardRoot.post(() -> {
                                         if (uriStr.equals(poster.getTag())) {
                                             poster.setImageBitmap(bmp);
+                                            poster.setAlpha(cardRoot.isFocused() ? 0.88f : 0.70f);
                                             poster.setVisibility(View.VISIBLE);
                                         }
                                     });
