@@ -42,14 +42,19 @@ public final class ContinueWatchingProvider {
 
         try (Cursor cursor = context.getContentResolver().query(WATCH_NEXT_URI, null, null, null, null)) {
             if (cursor == null || !cursor.moveToFirst()) {
+                Log.d(TAG, "WatchNext cursor is null or empty");
                 return Collections.emptyList();
             }
+
+            Log.d(TAG, "WatchNext count: " + cursor.getCount() + ", columns: " + java.util.Arrays.toString(cursor.getColumnNames()));
 
             int idCol = cursor.getColumnIndex("_id");
             int pkgCol = cursor.getColumnIndex("package_name");
             int titleCol = cursor.getColumnIndex("title");
             int epTitleCol = cursor.getColumnIndex("episode_title");
             int posterCol = cursor.getColumnIndex("poster_art_uri");
+            int thumbCol = cursor.getColumnIndex("thumbnail_uri");
+            int previewCol = cursor.getColumnIndex("preview_image_uri");
             int intentCol = cursor.getColumnIndex("intent_uri");
             int posCol = cursor.getColumnIndex("last_playback_position_millis");
             int durCol = cursor.getColumnIndex("duration_millis");
@@ -60,11 +65,21 @@ public final class ContinueWatchingProvider {
                 String pkg = pkgCol >= 0 ? cursor.getString(pkgCol) : "";
                 String title = titleCol >= 0 ? cursor.getString(titleCol) : "";
                 String epTitle = epTitleCol >= 0 ? cursor.getString(epTitleCol) : "";
-                String posterUri = posterCol >= 0 ? cursor.getString(posterCol) : "";
+                
+                String posterUri = posterCol >= 0 ? cursor.getString(posterCol) : null;
+                if (posterUri == null || posterUri.isEmpty()) {
+                    posterUri = thumbCol >= 0 ? cursor.getString(thumbCol) : null;
+                }
+                if (posterUri == null || posterUri.isEmpty()) {
+                    posterUri = previewCol >= 0 ? cursor.getString(previewCol) : null;
+                }
+
                 String intentUri = intentCol >= 0 ? cursor.getString(intentCol) : "";
                 long pos = posCol >= 0 ? cursor.getLong(posCol) : 0;
                 long dur = durCol >= 0 ? cursor.getLong(durCol) : 0;
                 long time = timeCol >= 0 ? cursor.getLong(timeCol) : 0;
+
+                Log.d(TAG, "WatchNext row: pkg=" + pkg + " title=" + title + " posterUri=" + posterUri);
 
                 int progress = (dur > 0) ? (int) Math.min(100, Math.max(0, (pos * 100) / dur)) : 0;
 

@@ -29,6 +29,9 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
     private final List<ContinueWatchingItem> items = new ArrayList<>();
     private final float density;
 
+    private static final android.util.LruCache<String, android.graphics.Bitmap> BITMAP_CACHE =
+            new android.util.LruCache<>(30);
+
     private int focusColorStart = 0xFF9AD9E8;
     private int focusColorEnd = 0xFFE8A4C9;
 
@@ -36,7 +39,13 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
         void onItemClick(ContinueWatchingItem item);
     }
 
+    public interface NavigationCallback {
+        void onNavigate();
+    }
+
     private OnItemClickListener listener;
+    private NavigationCallback onNavigateUp;
+    private NavigationCallback onNavigateDown;
 
     public ContinueWatchingAdapter(Context context) {
         this.context = context;
@@ -45,6 +54,11 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
 
     public void setListener(OnItemClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setNavigationCallbacks(NavigationCallback up, NavigationCallback down) {
+        this.onNavigateUp = up;
+        this.onNavigateDown = down;
     }
 
     public void setPalette(WallpaperColorExtractor.Palette palette) {
@@ -120,6 +134,22 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                     }
                 }
             });
+
+            cardRoot.setOnKeyListener((v, keyCode, event) -> {
+                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP) {
+                    if (onNavigateUp != null) {
+                        onNavigateUp.onNavigate();
+                        return true;
+                    }
+                } else if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
+                    if (onNavigateDown != null) {
+                        onNavigateDown.onNavigate();
+                        return true;
+                    }
+                }
+                return false;
+            });
         }
 
         void bind(ContinueWatchingItem item) {
@@ -131,23 +161,23 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
             cardRoot.setFocusGradient(focusColorStart, focusColorEnd);
             progressFill.setBackgroundColor(focusColorStart);
 
-            // Frosted translucent cinematic background so wallpaper shines through
+            // Ultra-translucent glass background so wallpaper shines through clearly
             int startColor, endColor;
             if ("in.startv.hotstar".equals(item.packageName)) {
-                startColor = 0x33142848;
-                endColor = 0x240A1424;
+                startColor = 0x1A142848;
+                endColor = 0x0E0A1424;
             } else if ("com.netflix.ninja".equals(item.packageName)) {
-                startColor = 0x333A141A;
-                endColor = 0x241A080C;
+                startColor = 0x1A3A141A;
+                endColor = 0x0E1A080C;
             } else if ("com.amazon.amazonvideo.livingroom".equals(item.packageName)) {
-                startColor = 0x330E3048;
-                endColor = 0x24061824;
+                startColor = 0x1A0E3048;
+                endColor = 0x0E061824;
             } else if ("com.apple.atve.androidtv.appletv".equals(item.packageName)) {
-                startColor = 0x33303038;
-                endColor = 0x2418181C;
+                startColor = 0x1A303038;
+                endColor = 0x0E18181C;
             } else {
-                startColor = 0x33202838;
-                endColor = 0x2410141E;
+                startColor = 0x1A202838;
+                endColor = 0x0E10141E;
             }
 
             GradientDrawable grad = new GradientDrawable(
@@ -155,7 +185,9 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                     new int[]{startColor, endColor}
             );
             grad.setCornerRadius(8f * density);
-            grad.setStroke((int) (0.8f * density), 0x26FFFFFF); // subtle frosted border
+            // Match unfocused card border with current wallpaper palette
+            int strokeColor = (focusColorStart != 0) ? ((focusColorStart & 0x00FFFFFF) | 0x44000000) : 0x22FFFFFF;
+            grad.setStroke((int) (0.8f * density), strokeColor);
             cardRoot.setBackground(grad);
 
             // Load artwork poster if available
@@ -163,33 +195,44 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
             if (item.posterUri != null && !item.posterUri.isEmpty()) {
                 final String uriStr = item.posterUri;
                 poster.setTag(uriStr);
-                new Thread(() -> {
-                    try {
-                        Uri u = Uri.parse(uriStr);
-                        java.io.InputStream is = null;
-                        if ("content".equals(u.getScheme()) || "android.resource".equals(u.getScheme())) {
-                            is = context.getContentResolver().openInputStream(u);
-                        } else if ("http".equals(u.getScheme()) || "https".equals(u.getScheme())) {
-                            java.net.URLConnection conn = new java.net.URL(uriStr).openConnection();
-                            conn.setConnectTimeout(3000);
-                            conn.setReadTimeout(3000);
-                            is = conn.getInputStream();
-                        }
-                        if (is != null) {
-                            android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(is);
-                            is.close();
-                            if (bmp != null) {
-                                cardRoot.post(() -> {
-                                    if (uriStr.equals(poster.getTag())) {
-                                        poster.setImageBitmap(bmp);
-                                        poster.setVisibility(View.VISIBLE);
-                                    }
-                                });
+
+                android.graphics.Bitmap cached = BITMAP_CACHE.get(uriStr);
+                if (cached != null) {
+                    poster.setImageBitmap(cached);
+                    poster.setVisibility(View.VISIBLE);
+                } else {
+                    poster.setVisibility(View.INVISIBLE);
+                    new Thread(() -> {
+                        try {
+                            Uri u = Uri.parse(uriStr);
+                            java.io.InputStream is = null;
+                            if ("content".equals(u.getScheme()) || "android.resource".equals(u.getScheme()) || "file".equals(u.getScheme())) {
+                                is = context.getContentResolver().openInputStream(u);
+                            } else if ("http".equals(u.getScheme()) || "https".equals(u.getScheme())) {
+                                java.net.URLConnection conn = new java.net.URL(uriStr).openConnection();
+                                conn.setConnectTimeout(4000);
+                                conn.setReadTimeout(4000);
+                                is = conn.getInputStream();
                             }
+                            if (is != null) {
+                                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(is);
+                                is.close();
+                                if (bmp != null) {
+                                    BITMAP_CACHE.put(uriStr, bmp);
+                                    cardRoot.post(() -> {
+                                        if (uriStr.equals(poster.getTag())) {
+                                            poster.setImageBitmap(bmp);
+                                            poster.setVisibility(View.VISIBLE);
+                                        }
+                                    });
+                                }
+                            }
+                        } catch (Exception ignored) {
                         }
-                    } catch (Exception ignored) {
-                    }
-                }).start();
+                    }).start();
+                }
+            } else {
+                poster.setVisibility(View.GONE);
             }
 
             // Progress bar

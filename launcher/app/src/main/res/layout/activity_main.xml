@@ -327,13 +327,20 @@
             </LinearLayout>
         </RelativeLayout>
 
+        <!-- Flexible center spacer: keeps wallpaper open and pushes Continue Watching down just above dock -->
+        <View
+            android:id="@+id/cwTopSpacer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <!-- Compact Continue Watching flexbar right above the dock -->
         <LinearLayout
             android:id="@+id/continueWatchingSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="2dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
             android:orientation="vertical"
             android:clipChildren="false"
             android:clipToPadding="false">

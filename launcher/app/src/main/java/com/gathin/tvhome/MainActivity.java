@@ -631,6 +631,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         if (continueWatchingGrid != null) {
             continueWatchingGrid.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
             continueWatchingAdapter = new ContinueWatchingAdapter(this);
+            continueWatchingAdapter.setNavigationCallbacks(
+                () -> {
+                    if (btnWifi != null && btnWifi.getVisibility() == View.VISIBLE) {
+                        btnWifi.requestFocus();
+                    } else if (btnInputs != null && btnInputs.getVisibility() == View.VISIBLE) {
+                        btnInputs.requestFocus();
+                    } else {
+                        View btnSettings = findViewById(R.id.btnSettings);
+                        if (btnSettings != null) btnSettings.requestFocus();
+                    }
+                },
+                () -> {
+                    focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
+                }
+            );
             continueWatchingGrid.setAdapter(continueWatchingAdapter);
             loadContinueWatching();
         }
@@ -809,11 +824,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
                 @Override
                 public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
-                    int shift = rv.canScrollVertically(-1) ? rv.computeVerticalScrollOffset() : 0;
-                    cwSection.setTranslationY(-shift);
-                    float alpha = Math.max(0f, 1f - shift / (100f * density));
-                    cwSection.setAlpha(alpha);
-                    cwSection.setVisibility(alpha > 0f ? View.VISIBLE : View.GONE);
+                    boolean atTop = !rv.canScrollVertically(-1);
+                    if (atTop) {
+                        cwSection.setTranslationY(0f);
+                        cwSection.setAlpha(1f);
+                        cwSection.setVisibility(View.VISIBLE);
+                    } else {
+                        int shift = rv.computeVerticalScrollOffset();
+                        float alpha = Math.max(0f, 1f - shift / (120f * density));
+                        cwSection.setAlpha(alpha);
+                        cwSection.setVisibility(alpha > 0.01f ? View.VISIBLE : View.INVISIBLE);
+                    }
+                }
+
+                @Override
+                public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
+                    if (newState == RecyclerView.SCROLL_STATE_IDLE && !rv.canScrollVertically(-1)) {
+                        cwSection.setTranslationY(0f);
+                        cwSection.setAlpha(1f);
+                        cwSection.setVisibility(View.VISIBLE);
+                    }
                 }
             });
         }
@@ -952,6 +982,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (continueWatchingGrid != null && continueWatchingGrid.getVisibility() == View.VISIBLE
+                        && continueWatchingAdapter != null && continueWatchingAdapter.getItemCount() > 0) {
+                    View target = continueWatchingGrid.getFocusedChild();
+                    if (target == null && continueWatchingGrid.getChildCount() > 0) {
+                        target = continueWatchingGrid.getChildAt(0);
+                    }
+                    if (target != null) {
+                        target.requestFocus();
+                        return true;
+                    }
+                }
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
@@ -1237,6 +1278,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                 View section = findViewById(R.id.continueWatchingSection);
                 if (section != null) {
                     section.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
+                }
+                View spacer = findViewById(R.id.cwTopSpacer);
+                if (spacer != null) {
+                    spacer.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
                 }
                 updateFocusNavigation(!items.isEmpty());
             });
@@ -1978,6 +2023,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         }
         View item = (View) card.getParent();
         if (dockRow && (singleRow || position < COLUMNS)) {
+            View cwSectionView = findViewById(R.id.continueWatchingSection);
+            if (cwSectionView != null && continueWatchingAdapter != null && continueWatchingAdapter.getItemCount() > 0) {
+                cwSectionView.setTranslationY(0f);
+                cwSectionView.setAlpha(1f);
+                cwSectionView.setVisibility(View.VISIBLE);
+            }
             // Dock: park it at the bottom of the screen and show the top shelf for this app. In a single row
             // every tile is in the dock's row, which never scrolls vertically.
             int decoratedTop = item.getTop() - (int) (6 * density);
@@ -2544,7 +2595,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         if (singleRow) {
             // One row: Up leaves for the top bar, Down has nowhere to go, and Left/Right walk the whole row,
             // stopping at its two ends (the default focus search scrolls the row to the next tile).
-            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (continueWatchingGrid != null && continueWatchingGrid.getVisibility() == View.VISIBLE
+                        && continueWatchingAdapter != null && continueWatchingAdapter.getItemCount() > 0) {
+                    View cwChild = continueWatchingGrid.getFocusedChild();
+                    if (cwChild == null && continueWatchingGrid.getChildCount() > 0) {
+                        cwChild = continueWatchingGrid.getChildAt(0);
+                    }
+                    if (cwChild != null) {
+                        cwChild.requestFocus();
+                        grid.playSoundEffect(SoundEffectConstants.NAVIGATION_UP);
+                        return true;
+                    }
+                }
+                return false;
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) return true;
             boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
             int last = adapter.focusablePosition(count - 1);
@@ -2568,7 +2633,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
+            if (position < COLUMNS) {
+                if (continueWatchingGrid != null && continueWatchingGrid.getVisibility() == View.VISIBLE
+                        && continueWatchingAdapter != null && continueWatchingAdapter.getItemCount() > 0) {
+                    View cwChild = continueWatchingGrid.getFocusedChild();
+                    if (cwChild == null && continueWatchingGrid.getChildCount() > 0) {
+                        cwChild = continueWatchingGrid.getChildAt(0);
+                    }
+                    if (cwChild != null) {
+                        cwChild.requestFocus();
+                        grid.playSoundEffect(SoundEffectConstants.NAVIGATION_UP);
+                        return true;
+                    }
+                }
+                return false;          // dock row: let focus move to the top bar
+            }
             target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
