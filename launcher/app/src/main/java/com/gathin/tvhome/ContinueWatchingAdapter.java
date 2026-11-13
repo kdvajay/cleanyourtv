@@ -132,9 +132,9 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                     if (v.getParent() instanceof View) {
                         ((View) v.getParent()).invalidate();
                     }
-                    poster.animate().alpha(0.88f).setDuration(180).start();
+                    poster.animate().alpha(0.78f).setDuration(180).start();
                 } else {
-                    poster.animate().alpha(0.70f).setDuration(180).start();
+                    poster.animate().alpha(0.45f).setDuration(180).start();
                 }
             });
 
@@ -164,23 +164,23 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
             cardRoot.setFocusGradient(focusColorStart, focusColorEnd);
             progressFill.setBackgroundColor(focusColorStart);
 
-            // Ultra-translucent glass background so wallpaper shines through clearly
+            // Ultra-sheer glass background so wallpaper shines through clearly
             int startColor, endColor;
             if ("in.startv.hotstar".equals(item.packageName)) {
-                startColor = 0x1A142848;
-                endColor = 0x0E0A1424;
+                startColor = 0x0D142848;
+                endColor = 0x050A1424;
             } else if ("com.netflix.ninja".equals(item.packageName)) {
-                startColor = 0x1A3A141A;
-                endColor = 0x0E1A080C;
+                startColor = 0x0D3A141A;
+                endColor = 0x051A080C;
             } else if ("com.amazon.amazonvideo.livingroom".equals(item.packageName)) {
-                startColor = 0x1A0E3048;
-                endColor = 0x0E061824;
+                startColor = 0x0D0E3048;
+                endColor = 0x05061824;
             } else if ("com.apple.atve.androidtv.appletv".equals(item.packageName)) {
-                startColor = 0x1A303038;
-                endColor = 0x0E18181C;
+                startColor = 0x0D303038;
+                endColor = 0x0518181C;
             } else {
-                startColor = 0x1A202838;
-                endColor = 0x0E10141E;
+                startColor = 0x0D202838;
+                endColor = 0x0510141E;
             }
 
             GradientDrawable grad = new GradientDrawable(
@@ -189,7 +189,7 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
             );
             grad.setCornerRadius(8f * density);
             // Match unfocused card border with current wallpaper palette
-            int strokeColor = (focusColorStart != 0) ? ((focusColorStart & 0x00FFFFFF) | 0x44000000) : 0x22FFFFFF;
+            int strokeColor = (focusColorStart != 0) ? ((focusColorStart & 0x00FFFFFF) | 0x33000000) : 0x1AFFFFFF;
             grad.setStroke((int) (0.8f * density), strokeColor);
             cardRoot.setBackground(grad);
 
@@ -202,7 +202,7 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                 android.graphics.Bitmap cached = BITMAP_CACHE.get(uriStr);
                 if (cached != null) {
                     poster.setImageBitmap(cached);
-                    poster.setAlpha(cardRoot.isFocused() ? 0.88f : 0.70f);
+                    poster.setAlpha(cardRoot.isFocused() ? 0.78f : 0.45f);
                     poster.setVisibility(View.VISIBLE);
                 } else {
                     poster.setVisibility(View.INVISIBLE);
@@ -226,7 +226,7 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
                                     cardRoot.post(() -> {
                                         if (uriStr.equals(poster.getTag())) {
                                             poster.setImageBitmap(bmp);
-                                            poster.setAlpha(cardRoot.isFocused() ? 0.88f : 0.70f);
+                                            poster.setAlpha(cardRoot.isFocused() ? 0.78f : 0.45f);
                                             poster.setVisibility(View.VISIBLE);
                                         }
                                     });
