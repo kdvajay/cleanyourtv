@@ -1,0 +1,41 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="101dp"
+    android:viewportWidth="180"
+    android:viewportHeight="101">
+    <!-- Circle Outline -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.0"
+        android:fillColor="#00000000"
+        android:pathData="M90,28.5 a22,22 0 1,0 0.001,0 Z" />
+    <!-- 'j' hook -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M82,43 v11 c0,2.5 -1.2,4.0 -3.2,4.0 c-1.0,0 -1.8,-0.4 -2.4,-1.0" />
+    <!-- 'j' dot -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M82,37.6 a1.4,1.4 0 1,0 0.001,0 Z" />
+    <!-- 'i' stem -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M87,45 v9" />
+    <!-- 'i' dot -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M87,37.6 a1.4,1.4 0 1,0 0.001,0 Z" />
+    <!-- 'o' circle -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.6"
+        android:fillColor="#00000000"
+        android:pathData="M95,45 a4.5,4.5 0 1,0 0.001,0 Z" />
+</vector>

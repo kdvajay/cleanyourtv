@@ -298,24 +298,8 @@ public class CookieClockView extends View {
         // Center Pivot Pin
         canvas.drawCircle(cx, cy, 3.2f * density, centerPinPaint);
 
-        // 5. Satellite Badges
-        // Top-Left Badge: Day of Month (e.g. "13" or "1")
-        // Positioned around 225° / -135° along the scallop border
-        float badgeDist = rPeak + 5f * density;
-        float b1X = cx - badgeDist * 0.7071f;
-        float b1Y = cy - badgeDist * 0.7071f;
-        float b1W = 24f * density;
-        float b1H = 22f * density;
-        badgeRect.set(b1X - b1W / 2f, b1Y - b1H / 2f, b1X + b1W / 2f, b1Y + b1H / 2f);
-        canvas.drawRoundRect(badgeRect, 6f * density, 6f * density, badge1Paint);
-
-        badgeTextPaint.setTextSize(11f * density);
-        String dayStr = String.valueOf(dayOfMonth);
-        badgeTextPaint.getTextBounds(dayStr, 0, dayStr.length(), textBounds);
-        canvas.drawText(dayStr, b1X, b1Y + textBounds.height() / 2f, badgeTextPaint);
-
-        // Bottom-Right Badge: Seconds Capsule (e.g. "06" or "42")
-        // Positioned around 45° / +135° along the scallop border
+        // 5. Bottom-Right Seconds Capsule Badge (e.g. "02" or "42")
+        // Note: Top-left date badge was removed per user request to avoid confusion with time.
         float secDist = rPeak + 6f * density;
         float secX = cx + secDist * 0.7071f;
         float secY = cy + secDist * 0.7071f;

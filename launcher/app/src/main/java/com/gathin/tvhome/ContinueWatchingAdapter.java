@@ -29,6 +29,9 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
     private final List<ContinueWatchingItem> items = new ArrayList<>();
     private final float density;
 
+    private int focusColorStart = 0xFF9AD9E8;
+    private int focusColorEnd = 0xFFE8A4C9;
+
     public interface OnItemClickListener {
         void onItemClick(ContinueWatchingItem item);
     }
@@ -42,6 +45,14 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
 
     public void setListener(OnItemClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setPalette(WallpaperColorExtractor.Palette palette) {
+        if (palette != null) {
+            this.focusColorStart = palette.hourHandColor;
+            this.focusColorEnd = palette.minuteHandColor;
+            notifyDataSetChanged();
+        }
     }
 
     public void setItems(List<ContinueWatchingItem> newItems) {
@@ -116,30 +127,35 @@ public class ContinueWatchingAdapter extends RecyclerView.Adapter<ContinueWatchi
             subtitle.setText(item.subtitle);
             badge.setText(item.appName);
 
-            // Sleek cinematic gradient background based on streaming brand
+            // Dynamically match focus border and progress fill with current wallpaper
+            cardRoot.setFocusGradient(focusColorStart, focusColorEnd);
+            progressFill.setBackgroundColor(focusColorStart);
+
+            // Frosted translucent cinematic background so wallpaper shines through
             int startColor, endColor;
             if ("in.startv.hotstar".equals(item.packageName)) {
-                startColor = 0xFF14243B;
-                endColor = 0xFF08101E;
+                startColor = 0x33142848;
+                endColor = 0x240A1424;
             } else if ("com.netflix.ninja".equals(item.packageName)) {
-                startColor = 0xFF2D1217;
-                endColor = 0xFF120709;
+                startColor = 0x333A141A;
+                endColor = 0x241A080C;
             } else if ("com.amazon.amazonvideo.livingroom".equals(item.packageName)) {
-                startColor = 0xFF0E283D;
-                endColor = 0xFF05131E;
+                startColor = 0x330E3048;
+                endColor = 0x24061824;
             } else if ("com.apple.atve.androidtv.appletv".equals(item.packageName)) {
-                startColor = 0xFF28282D;
-                endColor = 0xFF141416;
+                startColor = 0x33303038;
+                endColor = 0x2418181C;
             } else {
-                startColor = 0xFF1E2430;
-                endColor = 0xFF0F131A;
+                startColor = 0x33202838;
+                endColor = 0x2410141E;
             }
 
             GradientDrawable grad = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
                     new int[]{startColor, endColor}
             );
-            grad.setCornerRadius(10f * density);
+            grad.setCornerRadius(8f * density);
+            grad.setStroke((int) (0.8f * density), 0x26FFFFFF); // subtle frosted border
             cardRoot.setBackground(grad);
 
             // Load artwork poster if available

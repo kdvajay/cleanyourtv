@@ -1,1 +1,33 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="180dp" android:height="101dp" android:viewportWidth="180" android:viewportHeight="101"><path android:strokeColor="#FFF" android:strokeWidth="3" android:pathData="M90,28a22,22 0 1,1 -0.1,0M79,44q11,-5 22,1M80,50q10,-4 20,1M82,56q8,-3 16,1"/></vector>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="101dp"
+    android:viewportWidth="180"
+    android:viewportHeight="101">
+    <!-- Circle Outline -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.0"
+        android:fillColor="#00000000"
+        android:pathData="M90,28.5 a22,22 0 1,0 0.001,0 Z" />
+    <!-- Top Audio Wave -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.0"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M78.5,43.5 C84.5,41.2 95.5,41.5 101.5,45.2" />
+    <!-- Mid Audio Wave -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M80.5,49.5 C85.5,47.8 94.5,48.0 99.5,51.0" />
+    <!-- Bottom Audio Wave -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M82.5,55.5 C86.5,54.2 93.5,54.5 97.5,56.8" />
+</vector>

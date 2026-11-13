@@ -427,8 +427,8 @@
             android:id="@+id/continueWatchingSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="4dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="2dp"
             android:orientation="vertical"
             android:clipChildren="false"
             android:clipToPadding="false">
@@ -437,13 +437,13 @@
                 android:id="@+id/continueWatchingTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginBottom="8dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginBottom="4dp"
                 android:text="CONTINUE WATCHING"
-                android:textColor="#99FFFFFF"
-                android:textSize="12sp"
+                android:textColor="#8CFFFFFF"
+                android:textSize="11sp"
                 android:fontFamily="@string/font_medium"
-                android:letterSpacing="0.22"
+                android:letterSpacing="0.20"
                 android:textAllCaps="true" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -464,9 +464,7 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipChildren="false"
-            android:clipToPadding="false">
+            android:layout_weight="1">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/grid"

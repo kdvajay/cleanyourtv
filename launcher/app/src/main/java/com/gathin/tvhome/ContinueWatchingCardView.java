@@ -30,6 +30,10 @@ public class ContinueWatchingCardView extends FrameLayout {
     private int lastWidth = 0;
     private int lastHeight = 0;
 
+    private int focusColorStart = 0xFF00F0FF;
+    private int focusColorEnd = 0xFFFF007F;
+    private int glowColor = 0x4000F0FF;
+
     public ContinueWatchingCardView(Context context) {
         super(context);
         init(context);
@@ -52,14 +56,14 @@ public class ContinueWatchingCardView extends FrameLayout {
         setWillNotDraw(false);
 
         borderPaint.setStyle(Paint.Style.STROKE);
-        borderPaint.setStrokeWidth(2.5f * density);
+        borderPaint.setStrokeWidth(2.2f * density);
 
         glowPaint.setStyle(Paint.Style.STROKE);
-        glowPaint.setStrokeWidth(5f * density);
-        glowPaint.setColor(0x4000F0FF); // soft cyan halo
+        glowPaint.setStrokeWidth(4.5f * density);
+        glowPaint.setColor(glowColor);
 
         // Clip children to smooth rounded rect
-        final float cornerRadius = 10f * density;
+        final float cornerRadius = 8f * density;
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
@@ -69,20 +73,38 @@ public class ContinueWatchingCardView extends FrameLayout {
         setClipToOutline(true);
     }
 
+    public void setFocusGradient(int startColor, int endColor) {
+        if (startColor != 0 && endColor != 0) {
+            this.focusColorStart = startColor;
+            this.focusColorEnd = endColor;
+            this.glowColor = (startColor & 0x00FFFFFF) | 0x38000000;
+            glowPaint.setColor(this.glowColor);
+            updateShader();
+            if (isFocused()) invalidate();
+        }
+    }
+
+    private void updateShader() {
+        int w = getWidth();
+        int h = getHeight();
+        if (w > 0 && h > 0) {
+            gradientShader = new LinearGradient(
+                    0, 0, w, h,
+                    new int[]{focusColorStart, focusColorEnd},
+                    new float[]{0f, 1f},
+                    Shader.TileMode.CLAMP
+            );
+            borderPaint.setShader(gradientShader);
+        }
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         if (w > 0 && h > 0 && (w != lastWidth || h != lastHeight)) {
             lastWidth = w;
             lastHeight = h;
-            // 45° diagonal gradient from top-left to bottom-right
-            gradientShader = new LinearGradient(
-                    0, 0, w, h,
-                    new int[]{0xFF00F0FF, 0xFFFF007F}, // Cyan to Magenta
-                    new float[]{0f, 1f},
-                    Shader.TileMode.CLAMP
-            );
-            borderPaint.setShader(gradientShader);
+            updateShader();
         }
     }
 
@@ -108,10 +130,10 @@ public class ContinueWatchingCardView extends FrameLayout {
             // Subtle glow under border
             float glowInset = glowPaint.getStrokeWidth() / 2f;
             glowRect.set(glowInset, glowInset, getWidth() - glowInset, getHeight() - glowInset);
-            canvas.drawRoundRect(glowRect, 10f * density, 10f * density, glowPaint);
+            canvas.drawRoundRect(glowRect, 8f * density, 8f * density, glowPaint);
 
-            // 45° angled cyan-to-magenta Hyprland neon gradient border
-            canvas.drawRoundRect(cardRect, 10f * density, 10f * density, borderPaint);
+            // 45° angled wallpaper-matched gradient border
+            canvas.drawRoundRect(cardRect, 8f * density, 8f * density, borderPaint);
         }
     }
 }

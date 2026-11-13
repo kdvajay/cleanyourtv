@@ -1,1 +1,12 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="180dp" android:height="101dp" android:viewportWidth="180" android:viewportHeight="101"><path android:strokeColor="#FFF" android:strokeWidth="3.2" android:pathData="M65,34h50a8,8 0 0 1 8,8v24a8,8 0 0 1 -8,8H65a8,8 0 0 1 -8,-8V42a8,8 0 0 1 8,-8zM90,74v6M80,80h20M82,24l8,10 8,-10"/></vector>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="101dp"
+    android:viewportWidth="180"
+    android:viewportHeight="101">
+    <!-- Clean TV monitor with antennas -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.0"
+        android:fillColor="#00000000"
+        android:pathData="M66,34 h48 a8,8 0 0,1 8,8 v24 a8,8 0 0,1 -8,8 H66 a8,8 0 0,1 -8,-8 V42 a8,8 0 0,1 8,-8 z M90,74 v6 M80,80 h20 M83,25 l7,9 7,-9" />
+</vector>

@@ -525,8 +525,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         cookieClock = findViewById(R.id.cookieClock);
         if (cookieClock != null) {
             cookieClock.setIs24Hour(ClockFormat.is24(this, clockFormat));
-            wallpaperPlayer.setPaletteListener(palette -> cookieClock.setPalette(palette));
         }
+        wallpaperPlayer.setPaletteListener(palette -> {
+            if (cookieClock != null) cookieClock.setPalette(palette);
+            if (continueWatchingAdapter != null) continueWatchingAdapter.setPalette(palette);
+        });
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
