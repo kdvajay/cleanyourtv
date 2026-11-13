@@ -61,6 +61,15 @@ final class WallpaperPlayer {
     private final String latitude, longitude;
     private LocalDate sunDay;
     private int[] sun;
+    private WallpaperColorExtractor.Listener paletteListener;
+    private WallpaperColorExtractor.Palette lastPalette;
+
+    void setPaletteListener(WallpaperColorExtractor.Listener listener) {
+        this.paletteListener = listener;
+        if (listener != null && lastPalette != null) {
+            listener.onWallpaperPaletteChanged(lastPalette);
+        }
+    }
 
     WallpaperPlayer(Context context, FrameLayout root, Config config) {
         this.root = root;
@@ -128,6 +137,9 @@ final class WallpaperPlayer {
             Bitmap bitmap = decode(first);
             if (bitmap != null) {
                 show(bitmap);
+                if (paletteListener != null && lastPalette != null) {
+                    paletteListener.onWallpaperPaletteChanged(lastPalette);
+                }
                 // The picture covers the whole screen: the root's plain colour under it is overdraw.
                 root.setBackground(null);
                 displayed = first.getName();
@@ -212,6 +224,9 @@ final class WallpaperPlayer {
                     return;
                 }
                 show(bitmap);
+                if (paletteListener != null && lastPalette != null) {
+                    paletteListener.onWallpaperPaletteChanged(lastPalette);
+                }
                 displayed = next.getName();
                 showCaption(true);
                 if (!displayed.equals(previous) || changed == 0) {
@@ -310,6 +325,7 @@ final class WallpaperPlayer {
             Bitmap decoded = BitmapFactory.decodeFile(file.getPath(), options);
             if (decoded == null) return null;
             if (dimColor != 0) new Canvas(decoded).drawColor(dimColor);
+            lastPalette = WallpaperColorExtractor.extract(decoded);
             // One copy in GPU memory instead of a software bitmap plus its texture; the decode stays off the UI
             // thread for rotations, and Home's return no longer uploads 4-8 MB to the GPU.
             Bitmap gpu = decoded.copy(Bitmap.Config.HARDWARE, false);

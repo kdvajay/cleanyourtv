@@ -85,6 +85,7 @@ import androidx.dynamicanimation.animation.FloatPropertyCompat;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
@@ -188,6 +189,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
     private boolean advancedEffects;
     private TextView greeting;
     private View clockBlock;
+    private CookieClockView cookieClock;
+    private RecyclerView continueWatchingGrid;
+    private ContinueWatchingAdapter continueWatchingAdapter;
     private View btnInputs;
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
     private boolean showInputsPill = true;
@@ -464,6 +468,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
     private java.util.Map<Integer, String> homeHoldAppKeys = java.util.Collections.emptyMap();
 
     @Override
+    @android.annotation.SuppressLint("InvalidSetHasFixedSize")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -517,6 +522,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         // the theme's background, so launch looks the same.
         getWindow().setBackgroundDrawable(null);
         wallpaperPlayer = new WallpaperPlayer(this, root, cfg);
+        cookieClock = findViewById(R.id.cookieClock);
+        if (cookieClock != null) {
+            cookieClock.setIs24Hour(ClockFormat.is24(this, clockFormat));
+            wallpaperPlayer.setPaletteListener(palette -> cookieClock.setPalette(palette));
+        }
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
@@ -613,6 +623,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
         libraryExcludedApps = new HashSet<>(cfg.libraryExcludedApps);
+
+        continueWatchingGrid = findViewById(R.id.continueWatchingGrid);
+        if (continueWatchingGrid != null) {
+            continueWatchingGrid.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+            continueWatchingAdapter = new ContinueWatchingAdapter(this);
+            continueWatchingGrid.setAdapter(continueWatchingAdapter);
+            loadContinueWatching();
+        }
 
         grid = findViewById(R.id.grid);
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
@@ -779,6 +797,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
                     racePanel.setTranslationY(-shift);
                     int room = Math.max(1, racePanel.getTop() - clockBlock.getBottom());
                     racePanel.setAlpha(Math.max(0f, 1f - shift / (float) room));
+                }
+            });
+        }
+
+        View cwSection = findViewById(R.id.continueWatchingSection);
+        if (cwSection != null) {
+            grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+                @Override
+                public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                    int shift = rv.canScrollVertically(-1) ? rv.computeVerticalScrollOffset() : 0;
+                    cwSection.setTranslationY(-shift);
+                    float alpha = Math.max(0f, 1f - shift / (100f * density));
+                    cwSection.setAlpha(alpha);
+                    cwSection.setVisibility(alpha > 0f ? View.VISIBLE : View.GONE);
                 }
             });
         }
@@ -1175,6 +1207,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
             handler.removeCallbacks(this);
             handler.post(this);
         }
+        loadContinueWatching();
         if (festive && lamp != null) {
             lamp.start();
             LocalDate today = LocalDate.now();
@@ -1188,6 +1221,39 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
     /** Launcher settings' change count (Config.SETTINGS_REVISION_KEY); onResume rebuilds Home when it moved. */
     private long settingsRevision() {
         return getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getLong(Config.SETTINGS_REVISION_KEY, 0);
+    }
+
+    private void loadContinueWatching() {
+        if (continueWatchingAdapter == null) return;
+        new Thread(() -> {
+            List<ContinueWatchingItem> items = ContinueWatchingProvider.load(this);
+            runOnUiThread(() -> {
+                if (continueWatchingAdapter != null) {
+                    continueWatchingAdapter.setItems(items);
+                }
+                View section = findViewById(R.id.continueWatchingSection);
+                if (section != null) {
+                    section.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
+                }
+                updateFocusNavigation(!items.isEmpty());
+            });
+        }).start();
+    }
+
+    private void updateFocusNavigation(boolean hasContinueWatching) {
+        int downTarget = hasContinueWatching ? R.id.continueWatchingGrid : R.id.grid;
+        if (btnInputs != null) btnInputs.setNextFocusDownId(downTarget);
+        if (btnWifi != null) btnWifi.setNextFocusDownId(downTarget);
+        if (btnBluetooth != null) btnBluetooth.setNextFocusDownId(downTarget);
+        View btnSettings = findViewById(R.id.btnSettings);
+        if (btnSettings != null) btnSettings.setNextFocusDownId(downTarget);
+        if (grid != null) {
+            grid.setNextFocusUpId(hasContinueWatching ? R.id.continueWatchingGrid : R.id.btnWifi);
+        }
+        if (continueWatchingGrid != null) {
+            continueWatchingGrid.setNextFocusDownId(R.id.grid);
+            continueWatchingGrid.setNextFocusUpId(R.id.btnWifi);
+        }
     }
 
     /**
@@ -2527,6 +2593,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
      * the clock's row, and the line between them goes. In Hebrew (rtl_menu_bar) the date and the clock's row sit right.
      */
     private void moveDateBelowClock() {
+        if (cookieClock != null) return;
         View column = (View) findViewById(R.id.date).getParent();
         View clockRow = (View) findViewById(R.id.clock).getParent();
         LinearLayout clockColumn = (LinearLayout) clockRow.getParent();
@@ -2712,6 +2779,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, R
         long minValidTime = Math.max(TIME_VALID_AFTER_MS, Build.TIME + 86_400_000L);
         boolean valid = System.currentTimeMillis() >= minValidTime || SystemClock.elapsedRealtime() > 60_000L;
         clockBlock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
+        if (cookieClock != null) cookieClock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
         handler.removeCallbacks(clockCheck);
         if (valid) {
             updateGreeting();
